@@ -1,0 +1,38 @@
+http:
+  middlewares:
+    # Security headers
+    security-headers:
+      headers:
+        accesscontrolalloworiginlist:
+          - "https://*"
+          - "http://localhost"
+        accesscontrolmaxage: 100
+        addvaryheader: true
+        sslredirect: true
+        sslhost: "example.com"
+        sslforcehost: true
+        sslproxyheaders:
+          X-Forwarded-Proto: https
+        stsseconds: 63072000
+        stsincludesubdomains: true
+        stspreload: true
+        forcestsheader: true
+        customframeoptions: "SAMEORIGIN"
+        contenttype: "text/html; charset=utf-8"
+        browserxssfilter: true
+        referrerpolicy: "no-referrer"
+
+    # Rate limiting
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 200
+
+    # Compress responses
+    gzip:
+      compress: true
+
+  # Redirect http to https globally
+  redirectscheme:
+    scheme: https
+    permanent: true
