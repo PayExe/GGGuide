@@ -2,7 +2,6 @@ import { pool } from './connection'
 
 export async function initSchema() {
   try {
-    // Create guides table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS guides (
         id SERIAL PRIMARY KEY,
@@ -14,7 +13,6 @@ export async function initSchema() {
       )
     `)
 
-    // Create indexes for better query performance
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_game ON guides(game)
     `)

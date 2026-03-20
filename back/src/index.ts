@@ -13,35 +13,27 @@ validateEnv()
 
 const app = new Hono()
 
-// Middleware
 app.use('*', cors())
 app.use('*', loggerMiddleware)
 
-// Routes
 app.route('/api', routes)
 
-// Health check
 app.get('/health', (c) => c.json({ status: 'ok' }))
 
-// 404 handler
 app.notFound((c) => {
   return c.json({ error: 'Route not found' }, { status: 404 })
 })
 
-// Initialize and start server
 async function main() {
   try {
-    // Test database connection
     const connected = await testConnection()
     if (!connected) {
       console.error('❌ Failed to connect to database. Exiting.')
       process.exit(1)
     }
 
-    // Initialize schema
     await initSchema()
 
-    // Start server
     const port = env.PORT
     console.log(`🚀 GGGuide backend running on http://localhost:${port}`)
 
@@ -55,7 +47,6 @@ async function main() {
       }
     )
 
-    // Graceful shutdown
     process.on('SIGINT', async () => {
       console.log('\n🛑 Shutting down gracefully...')
       await closePool()

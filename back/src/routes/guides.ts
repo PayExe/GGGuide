@@ -10,7 +10,6 @@ import { CreateGuideInput } from '../types/guide'
 
 const guides = new Hono()
 
-// GET /guides - Get all guides
 guides.get('/', async (c) => {
   try {
     const allGuides = await getAllGuides()
@@ -21,7 +20,6 @@ guides.get('/', async (c) => {
   }
 })
 
-// GET /guides/:id - Get single guide
 guides.get('/:id', async (c) => {
   try {
     const id = parseInt(c.req.param('id'), 10)
@@ -42,12 +40,10 @@ guides.get('/:id', async (c) => {
   }
 })
 
-// POST /guides - Create new guide
 guides.post('/', async (c) => {
   try {
     const body = await c.req.json() as CreateGuideInput
 
-    // Validate input
     if (!body.title || !body.game || !body.content || !body.difficulty) {
       throw new HTTPException(400, { message: 'Champs manquants' })
     }
@@ -61,7 +57,6 @@ guides.post('/', async (c) => {
   }
 })
 
-// DELETE /guides/:id - Delete guide
 guides.delete('/:id', async (c) => {
   try {
     const id = parseInt(c.req.param('id'), 10)
