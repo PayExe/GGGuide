@@ -1,109 +1,76 @@
-import express from 'express'
-import Database from 'better-sqlite3'
-import dotenv from 'dotenv'
-import path from 'path'
+import { Hono } from 'hono'
+import { cors } from 'hono/cors'
+import { serve } from '@hono/node-server'
 
-dotenv.config()
+import { env, validateEnv } from './utils/env'
+import { testConnection, closePool } from './db/connection'
+import { initSchema } from './db/schema'
+import { loggerMiddleware } from './middleware/logger'
+import { errorHandler } from './middleware/errorHandler'
+import routes from './routes'
 
-const app = express()
-app.use(express.json())
+validateEnv()
 
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*')
-  res.header('Access-Control-Allow-Headers', 'Content-Type')
-  res.header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200)
-  }
-  next()
+const app = new Hono()
+
+// Middleware
+app.use('*', cors())
+app.use('*', loggerMiddleware)
+
+// Routes
+app.route('/api', routes)
+
+// Health check
+app.get('/health', (c) => c.json({ status: 'ok' }))
+
+// 404 handler
+app.notFound((c) => {
+  return c.json({ error: 'Route not found' }, { status: 404 })
 })
 
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`)
-  next()
-})
-
-const dbPath = path.join(process.cwd(), 'guides.db')
-const db = new Database(dbPath)
-db.pragma('journal_mode = WAL')
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS guides (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    game TEXT NOT NULL,
-    content TEXT NOT NULL,
-    difficulty TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`)
-
-console.log(`✅ Database ready at ${dbPath}`)
-
-app.get('/api/guides', (req, res) => {
+// Initialize and start server
+async function main() {
   try {
-    const guides = db.prepare('SELECT * FROM guides ORDER BY created_at DESC').all()
-    res.json(guides)
-  } catch (err) {
-    console.error('GET /api/guides error:', err)
-    res.status(500).json({ error: 'Erreur serveur' })
-  }
-})
-
-app.get('/api/guides/:id', (req, res) => {
-  try {
-    const guide = db.prepare('SELECT * FROM guides WHERE id = ?').get(req.params.id)
-    if (!guide) {
-      return res.status(404).json({ error: 'Guide non trouvé' })
-    }
-    res.json(guide)
-  } catch (err) {
-    console.error('GET /api/guides/:id error:', err)
-    res.status(500).json({ error: 'Erreur serveur' })
-  }
-})
-
-app.post('/api/guides', (req, res) => {
-  try {
-    const { title, game, content, difficulty } = req.body
-    
-    if (!title || !game || !content || !difficulty) {
-      return res.status(400).json({ error: 'Champs manquants' })
+    // Test database connection
+    const connected = await testConnection()
+    if (!connected) {
+      console.error('❌ Failed to connect to database. Exiting.')
+      process.exit(1)
     }
 
-    const stmt = db.prepare(
-      `INSERT INTO guides (title, game, content, difficulty) VALUES (?, ?, ?, ?)`
+    // Initialize schema
+    await initSchema()
+
+    // Start server
+    const port = env.PORT
+    console.log(`🚀 GGGuide backend running on http://localhost:${port}`)
+
+    const server = serve(
+      {
+        fetch: app.fetch,
+        port,
+      },
+      (info) => {
+        console.log(`✅ Server started on port ${info.port}`)
+      }
     )
-    const info = stmt.run(title, game, content, difficulty)
-    
-    const newGuide = db.prepare('SELECT * FROM guides WHERE id = ?').get(info.lastInsertRowid)
-    res.status(201).json(newGuide)
+
+    // Graceful shutdown
+    process.on('SIGINT', async () => {
+      console.log('\n🛑 Shutting down gracefully...')
+      await closePool()
+      process.exit(0)
+    })
+
+    process.on('SIGTERM', async () => {
+      console.log('\n🛑 Shutting down gracefully...')
+      await closePool()
+      process.exit(0)
+    })
   } catch (err) {
-    console.error('POST /api/guides error:', err)
-    res.status(500).json({ error: 'Erreur lors de la création' })
+    console.error('❌ Failed to start server:', err)
+    process.exit(1)
   }
-})
+}
 
-app.delete('/api/guides/:id', (req, res) => {
-  try {
-    const stmt = db.prepare('DELETE FROM guides WHERE id = ?')
-    const info = stmt.run(req.params.id)
-    
-    if (info.changes === 0) {
-      return res.status(404).json({ error: 'Guide non trouvé' })
-    }
-    res.json({ message: 'Guide supprimé' })
-  } catch (err) {
-    console.error('DELETE /api/guides/:id error:', err)
-    res.status(500).json({ error: 'Erreur lors de la suppression' })
-  }
-})
-
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' })
-})
-
-const PORT = process.env.PORT || 3001
-app.listen(PORT, () => {
-  console.log(`🚀 GGGuide backend running on http://localhost:${PORT}`)
-})
+main()
