@@ -11,226 +11,157 @@ interface Guide {
   created_at: string
 }
 
-const DIFFICULTY_COLOR: Record<string, string> = {
-  Facile: '#10b981',
-  Moyen: '#f59e0b',
-  Difficile: '#ef4444',
-}
-
-const getApiBaseUrl = () => {
-  if (import.meta.env.PROD) {
-    return import.meta.env.VITE_API_URL || window.location.origin
-  }
-  return ''
-}
-
 const API = axios.create({
-  baseURL: getApiBaseUrl(),
+  baseURL: import.meta.env.PROD ? (import.meta.env.VITE_API_URL || '') : '',
   timeout: 10000,
 })
 
 export default function App() {
   const [guides, setGuides] = useState<Guide[]>([])
   const [selected, setSelected] = useState<Guide | null>(null)
-  const [form, setForm] = useState({
-    title: '', game: '', content: '', difficulty: 'Facile'
-  })
+  const [form, setForm] = useState({ title: '', game: '', content: '', difficulty: 'Facile' })
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchGuides = async () => {
+  useEffect(() => {
+    fetchGuides()
+  }, [])
+
+  async function fetchGuides() {
     try {
       setLoading(true)
       setError(null)
       const res = await API.get('/api/guides')
       setGuides(res.data)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erreur de connexion au serveur'
-      setError(message)
-      console.error('Erreur fetch guides:', err)
+    } catch {
+      setError('Connexion impossible au serveur')
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => { fetchGuides() }, [])
-
-  const submit = async () => {
+  async function submit() {
     if (!form.title || !form.game || !form.content) {
-      setError('Tous les champs sont obligatoires')
+      setError('Tous les champs sont requis')
       return
     }
-
     try {
       setError(null)
       await API.post('/api/guides', form)
       setForm({ title: '', game: '', content: '', difficulty: 'Facile' })
       setShowForm(false)
-      await fetchGuides()
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erreur lors de la création'
-      setError(message)
-      console.error('Erreur submit:', err)
+      fetchGuides()
+    } catch {
+      setError('Erreur lors de la création')
     }
   }
 
-  const deleteGuide = async (id: number) => {
-    if (!window.confirm('Tu es sûr de vouloir supprimer ce guide?')) return
-    
+  async function deleteGuide(id: number) {
+    if (!confirm('Supprimer ce guide ?')) return
     try {
-      setError(null)
       await API.delete(`/api/guides/${id}`)
       setSelected(null)
-      await fetchGuides()
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erreur lors de la suppression'
-      setError(message)
-      console.error('Erreur delete:', err)
+      fetchGuides()
+    } catch {
+      setError('Erreur lors de la suppression')
     }
   }
 
-  if (selected) return (
-    <div className="container guide-detail">
-      <button className="back-btn" onClick={() => setSelected(null)}>
-        ← Retour
-      </button>
-
-      <div style={{ marginBottom: '1rem' }}>
-        <span className={`badge badge-${getDifficultyClass(selected.difficulty)}`}>
-          {selected.difficulty}
-        </span>
+  if (selected) {
+    return (
+      <div className="app">
+        <header className="header">
+          <div className="logo">GG<span>Guide</span></div>
+        </header>
+        <main className="main">
+          <div className="back" onClick={() => setSelected(null)}>← Retour</div>
+          <div className="detail">
+            <div className="detail-header">
+              <div className="detail-badge">
+                <span className={`badge badge-${badge(selected.difficulty)}`}>{selected.difficulty}</span>
+              </div>
+              <h1 className="detail-title">{selected.title}</h1>
+              <p className="detail-meta">{selected.game} · {new Date(selected.created_at).toLocaleDateString('fr-FR')}</p>
+            </div>
+            <p className="detail-content">{selected.content}</p>
+            <div className="detail-actions">
+              <button className="btn btn-danger" onClick={() => deleteGuide(selected.id)}>Supprimer</button>
+            </div>
+          </div>
+        </main>
       </div>
-
-      <h1>{selected.title}</h1>
-
-      <p className="meta">
-        {selected.game} · {new Date(selected.created_at).toLocaleDateString('fr-FR')}
-      </p>
-
-      <p className="content">{selected.content}</p>
-
-      <button className="btn btn-danger" onClick={() => deleteGuide(selected.id)}>
-        Supprimer ce guide
-      </button>
-    </div>
-  )
+    )
+  }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <div className="app">
       <header className="header">
-        <h1>GGGuide</h1>
-        <button 
-          className="btn btn-primary"
-          onClick={() => setShowForm(!showForm)}>
-          {showForm ? 'Annuler' : '+ Nouveau guide'}
+        <div className="logo">GG<span>Guide</span></div>
+        <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
+          {showForm ? 'Annuler' : '+ Nouveau'}
         </button>
       </header>
+      <main className="main">
+        {error && <div className="error">{error}</div>}
 
-      <main className="container" style={{ flex: 1 }}>
-        {error && (
-          <div className="error">{error}</div>
-        )}
-
-        {loading && (
-          <div className="loading">Chargement des guides...</div>
-        )}
+        {loading && <div className="loading">Chargement...</div>}
 
         {showForm && (
-          <div className="card" style={{ marginBottom: '2rem' }}>
-            <h2>Créer un nouveau guide</h2>
-
+          <div className="form">
+            <h2 className="form-title">Nouveau guide</h2>
             <div className="form-group">
-              <label>Titre du guide</label>
-              <input 
-                placeholder="Ex: Comment farmer des ressources"
-                value={form.title}
-                onChange={e => setForm({ ...form, title: e.target.value })}
-                style={{ width: '100%' }}
-              />
+              <label className="form-label">Titre</label>
+              <input className="form-input" placeholder="Titre du guide" value={form.title} onChange={e => setForm({...form, title: e.target.value})} />
             </div>
-
             <div className="form-group">
-              <label>Nom du jeu</label>
-              <input 
-                placeholder="Ex: Elden Ring"
-                value={form.game}
-                onChange={e => setForm({ ...form, game: e.target.value })}
-                style={{ width: '100%' }}
-              />
+              <label className="form-label">Jeu</label>
+              <input className="form-input" placeholder="Nom du jeu" value={form.game} onChange={e => setForm({...form, game: e.target.value})} />
             </div>
-
             <div className="form-group">
-              <label>Contenu du guide</label>
-              <textarea 
-                placeholder="Décris ton guide en détail..."
-                value={form.content}
-                onChange={e => setForm({ ...form, content: e.target.value })}
-                rows={5}
-                style={{ width: '100%' }}
-              />
+              <label className="form-label">Contenu</label>
+              <textarea className="form-textarea" placeholder="Contenu du guide" value={form.content} onChange={e => setForm({...form, content: e.target.value})} />
             </div>
-
             <div className="form-group">
-              <label>Difficulté</label>
-              <select 
-                value={form.difficulty}
-                onChange={e => setForm({ ...form, difficulty: e.target.value })}
-                style={{ width: '100%' }}
-              >
+              <label className="form-label">Difficulté</label>
+              <select className="form-select" value={form.difficulty} onChange={e => setForm({...form, difficulty: e.target.value})}>
                 <option>Facile</option>
                 <option>Moyen</option>
                 <option>Difficile</option>
               </select>
             </div>
-
-            <button className="btn btn-primary" onClick={submit}>
-              Publier le guide
-            </button>
+            <button className="btn btn-primary" onClick={submit}>Publier</button>
           </div>
         )}
 
         {!loading && guides.length === 0 && (
-          <div className="empty-state">
-            <p style={{ fontSize: '3rem', marginBottom: '1rem' }}>📖</p>
-            <p>Aucun guide pour l'instant</p>
-            <p style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>Crée le premier guide et partage tes astuces!</p>
+          <div className="empty">
+            <div className="empty-icon">📝</div>
+            <p className="empty-title">Aucun guide</p>
+            <p className="empty-text">Crée le premier pour commencer</p>
           </div>
         )}
 
-        <ul className="guide-list">
+        <div className="guides">
           {guides.map(g => (
-            <li key={g.id}>
-              <div 
-                className="card guide-item"
-                onClick={() => setSelected(g)}
-                style={{ cursor: 'pointer' }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
-                  <div style={{ flex: 1, textAlign: 'left' }}>
-                    <h2 style={{ marginBottom: '0.5rem' }}>{g.title}</h2>
-                    <p style={{ color: 'var(--text-lighter)', fontSize: '0.875rem' }}>
-                      {g.game}
-                    </p>
-                  </div>
-                  <span className={`badge badge-${getDifficultyClass(g.difficulty)}`}>
-                    {g.difficulty}
-                  </span>
+            <div key={g.id} className="guide" onClick={() => setSelected(g)}>
+              <div className="guide-top">
+                <div>
+                  <h3 className="guide-title">{g.title}</h3>
+                  <p className="guide-game">{g.game}</p>
                 </div>
+                <span className={`badge badge-${badge(g.difficulty)}`}>{g.difficulty}</span>
               </div>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       </main>
     </div>
   )
 }
 
-function getDifficultyClass(difficulty: string): string {
-  switch (difficulty) {
-    case 'Facile': return 'success'
-    case 'Moyen': return 'warning'
-    case 'Difficile': return 'danger'
-    default: return 'success'
-  }
+function badge(difficulty: string): string {
+  if (difficulty === 'Facile') return 'success'
+  if (difficulty === 'Moyen') return 'warning'
+  return 'danger'
 }
