@@ -26,9 +26,7 @@ services:
       - ggguide-network
 
   backend:
-    image: ${REGISTRY}/ggguide-backend:${VERSION}
-    ports:
-      - "3001:3001"
+    image: ${BACKEND_IMAGE}
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -73,7 +71,7 @@ services:
         max-file: "3"
 
   frontend:
-    image: ${REGISTRY}/ggguide-frontend:${VERSION}
+    image: ${FRONTEND_IMAGE}
     ports:
       - "80:80"
     deploy:
