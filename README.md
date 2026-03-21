@@ -7,6 +7,8 @@ _A little project just for training and learning infrastructure, APIs and full-s
 This is a training project built quickly by reusing components and patterns from previous projects i do.
 The main focus is on learning infrastructure setup, containerization with Docker and Docker Swarm orchestration.
 
+I did a lot of research, which explains the techno migrations, i guess next time i would take one techo for the rest of the projetc
+
 So yes i take more time on infra than other stack for trainging to future project :p
 
 ## Stack
