@@ -1,7 +1,6 @@
-version: '3.9'
+version: "3.9"
 
 services:
-  # Traefik Reverse Proxy (pour les tests locaux)
   traefik:
     image: traefik:3.0-alpine
     container_name: ggguide-traefik

@@ -1,6 +1,5 @@
 http:
   middlewares:
-    # Security headers
     security-headers:
       headers:
         accesscontrolalloworiginlist:
@@ -22,17 +21,14 @@ http:
         browserxssfilter: true
         referrerpolicy: "no-referrer"
 
-    # Rate limiting
     rate-limit:
       rateLimit:
         average: 100
         burst: 200
 
-    # Compress responses
     gzip:
       compress: true
 
-  # Redirect http to https globally
   redirectscheme:
     scheme: https
     permanent: true

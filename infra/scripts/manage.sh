@@ -1,20 +1,18 @@
 #!/bin/bash
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Default stack name
 STACK_NAME=${STACK_NAME:-ggguide}
 
 print_usage() {
     echo -e "${GREEN}=== Docker Swarm Management Script ===${NC}"
     echo ""
-    echo "Usage: ./swarm-manage.sh <command> [options]"
+    echo "Usage: ./manage.sh <command> [options]"
     echo ""
     echo "Commands:"
     echo "  status              Show swarm and stack status"
@@ -32,10 +30,10 @@ print_usage() {
     echo "  prune               Remove unused Docker resources"
     echo ""
     echo "Examples:"
-    echo "  ./swarm-manage.sh status"
-    echo "  ./swarm-manage.sh logs backend"
-    echo "  ./swarm-manage.sh scale backend 3"
-    echo "  ./swarm-manage.sh nodes"
+    echo "  ./manage.sh status"
+    echo "  ./manage.sh logs backend"
+    echo "  ./manage.sh scale backend 3"
+    echo "  ./manage.sh nodes"
 }
 
 check_swarm() {
@@ -50,7 +48,7 @@ cmd_status() {
     echo -e "${BLUE}=== Swarm Status ===${NC}"
     docker info | grep -A 20 "Swarm:"
     echo ""
-    
+
     if docker stack ls | grep -q "$STACK_NAME"; then
         echo -e "${BLUE}=== Stack Status ===${NC}"
         docker stack services "$STACK_NAME"
@@ -67,16 +65,16 @@ cmd_logs() {
     SERVICE=${1:-}
     if [ -z "$SERVICE" ]; then
         echo -e "${RED}Error: Service name required${NC}"
-        echo "Usage: ./swarm-manage.sh logs <service>"
+        echo "Usage: ./manage.sh logs <service>"
         exit 1
     fi
-    
+
     SERVICE_ID=$(docker service ls --filter "name=${STACK_NAME}_${SERVICE}" --quiet)
     if [ -z "$SERVICE_ID" ]; then
         echo -e "${RED}Error: Service '${STACK_NAME}_${SERVICE}' not found${NC}"
         exit 1
     fi
-    
+
     echo -e "${BLUE}Logs for service: ${STACK_NAME}_${SERVICE}${NC}"
     docker service logs -f "${STACK_NAME}_${SERVICE}"
 }
@@ -85,18 +83,18 @@ cmd_scale() {
     check_swarm
     SERVICE=${1:-}
     REPLICAS=${2:-}
-    
+
     if [ -z "$SERVICE" ] || [ -z "$REPLICAS" ]; then
         echo -e "${RED}Error: Service and replica count required${NC}"
-        echo "Usage: ./swarm-manage.sh scale <service> <replicas>"
+        echo "Usage: ./manage.sh scale <service> <replicas>"
         exit 1
     fi
-    
+
     if ! [[ "$REPLICAS" =~ ^[0-9]+$ ]]; then
         echo -e "${RED}Error: Replica count must be a number${NC}"
         exit 1
     fi
-    
+
     echo -e "${GREEN}Scaling ${STACK_NAME}_${SERVICE} to $REPLICAS replicas...${NC}"
     docker service scale "${STACK_NAME}_${SERVICE}=$REPLICAS"
     echo -e "${GREEN}✓ Scaled successfully${NC}"
@@ -131,16 +129,16 @@ cmd_inspect() {
     SERVICE=${1:-}
     if [ -z "$SERVICE" ]; then
         echo -e "${RED}Error: Service name required${NC}"
-        echo "Usage: ./swarm-manage.sh inspect <service>"
+        echo "Usage: ./manage.sh inspect <service>"
         exit 1
     fi
-    
+
     SERVICE_ID=$(docker service ls --filter "name=${STACK_NAME}_${SERVICE}" --quiet)
     if [ -z "$SERVICE_ID" ]; then
         echo -e "${RED}Error: Service '${STACK_NAME}_${SERVICE}' not found${NC}"
         exit 1
     fi
-    
+
     docker service inspect "${STACK_NAME}_${SERVICE}"
 }
 
@@ -154,7 +152,7 @@ cmd_health() {
     check_swarm
     echo -e "${BLUE}=== Service Health Status ===${NC}"
     echo ""
-    
+
     docker stack services "$STACK_NAME" --format "{{.Name}}" | while read -r service; do
         echo -e "${CYAN}$service:${NC}"
         docker stack ps "$STACK_NAME" --filter "service=$service" --format "  {{.Name}}\t{{.DesiredState}}/{{.CurrentState}}"
@@ -166,10 +164,10 @@ cmd_update() {
     SERVICE=${1:-}
     if [ -z "$SERVICE" ]; then
         echo -e "${RED}Error: Service name required${NC}"
-        echo "Usage: ./swarm-manage.sh update <service>"
+        echo "Usage: ./manage.sh update <service>"
         exit 1
     fi
-    
+
     echo -e "${GREEN}Updating service: ${STACK_NAME}_${SERVICE}...${NC}"
     docker service update --force-update "${STACK_NAME}_${SERVICE}"
     echo -e "${GREEN}✓ Update triggered${NC}"
@@ -180,10 +178,10 @@ cmd_rollback() {
     SERVICE=${1:-}
     if [ -z "$SERVICE" ]; then
         echo -e "${RED}Error: Service name required${NC}"
-        echo "Usage: ./swarm-manage.sh rollback <service>"
+        echo "Usage: ./manage.sh rollback <service>"
         exit 1
     fi
-    
+
     echo -e "${YELLOW}Rolling back service: ${STACK_NAME}_${SERVICE}...${NC}"
     docker service rollback "${STACK_NAME}_${SERVICE}"
     echo -e "${GREEN}✓ Rollback triggered${NC}"
@@ -191,14 +189,14 @@ cmd_rollback() {
 
 cmd_remove() {
     check_swarm
-    
+
     echo -e "${YELLOW}WARNING: This will remove the entire stack!${NC}"
     read -p "Are you sure? Type stack name to confirm: " -r
     if [ "$REPLY" != "$STACK_NAME" ]; then
         echo -e "${YELLOW}Cancelled${NC}"
         exit 0
     fi
-    
+
     echo -e "${RED}Removing stack: $STACK_NAME...${NC}"
     docker stack rm "$STACK_NAME"
     echo -e "${GREEN}✓ Stack removed${NC}"
@@ -212,13 +210,12 @@ cmd_prune() {
         echo -e "${YELLOW}Cancelled${NC}"
         exit 0
     fi
-    
+
     echo -e "${GREEN}Pruning Docker resources...${NC}"
     docker system prune -f
     echo -e "${GREEN}✓ Prune complete${NC}"
 }
 
-# Main logic
 COMMAND=${1:-}
 
 case $COMMAND in
